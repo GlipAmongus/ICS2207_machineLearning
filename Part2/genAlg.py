@@ -1,9 +1,6 @@
 import random
-import winsound
+import copy
 import matplotlib.pyplot as plt
-from timeit import default_timer as timer
-from numba import jit, cuda 
-
 
 # Calculate Distance between any 2 keys
 def calculate_distance(key1_pos, key2_pos):
@@ -138,7 +135,7 @@ def new_generation(weighted_pop, pop_size, mate_prob, mate_type, mate_splits, ma
         
     # Crossover
     for _ in range(int(pop_size * (1-elit_rate))):
-        # Select parents from the top 50%
+        # Select parents from above cutoff point
         p1 = random.choice(chromosomes_only[:int(pop_size * mate_cut)])
         
         # Decide if crossover should happen based on  muta_prob
@@ -153,7 +150,7 @@ def new_generation(weighted_pop, pop_size, mate_prob, mate_type, mate_splits, ma
             child = mate(p1, p2, mate_type, mate_splits)
         else:
             # No crossover, child is a clone
-            child = p1
+            child = copy.deepcopy(p1)
             
         # Mutation Operation
         if random.random() < muta_prob:
@@ -360,7 +357,7 @@ def main():
         "Crossover Point/s",
         "Crossover Cutoff",
         "Mutation Rate",
-        "Mutation ScaleS",
+        "Mutation Scale",
         "Mutation Strength",
         "Elitism Rate"
     ]
@@ -383,8 +380,8 @@ def main():
     _, ax = plt.subplots(1, 2, figsize=(14, 6), gridspec_kw={'width_ratios': [2, 1]})
 
     # Plot the fitness trends in the left subplot
-    ax[0].plot(range(1, generations + 1), average_fitness_list, label="Average Fitness", color="blue", marker="o")
-    ax[0].plot(range(1, generations + 1), best_fitness_list, label="Best Fitness", color="red", marker="x")
+    ax[0].plot(range(1, generations + 1), average_fitness_list, label="Average Fitness", color="blue")
+    ax[0].plot(range(1, generations + 1), best_fitness_list, label="Best Fitness", color="red")
     
     # Mark Qwerty and Dvorak
     ax[0].axhline(y=qwerty_fit, color="black", linestyle="--", label="Qwerty fitness")
