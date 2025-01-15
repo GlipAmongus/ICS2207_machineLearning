@@ -101,7 +101,7 @@ def init_population(pop_size):
 
 
 # Create the next generation of layouts
-def new_generation(weighted_pop, pop_size, mate_prob, mate_type, mate_splits, mate_cut, muta_prob, muta_num, muta_str, elit_rate):
+def new_generation(weighted_pop, pop_size, mate_prob, mate_type, mate_cut, muta_prob, muta_num, muta_str, elit_rate):
     """
     Create the next generation of layouts.
 
@@ -110,7 +110,6 @@ def new_generation(weighted_pop, pop_size, mate_prob, mate_type, mate_splits, ma
         pop_size: Total population size.
         mate_prob: Probability of crossover.
         mate_type: Type of crossover to perform.
-        mate_splits: Number of splits for crossover.
         muta_prob: Probability of mutation.
         muta_num: Number of mutations to apply.
         muta_str: Mutation strength
@@ -147,7 +146,7 @@ def new_generation(weighted_pop, pop_size, mate_prob, mate_type, mate_splits, ma
                 p2 = random.choice(chromosomes_only[:int(pop_size * mate_cut)])
                 
             # Perform crossover
-            child = mate(p1, p2, mate_type, mate_splits)
+            child = mate(p1, p2, mate_type)
         else:
             # No crossover, child is a clone
             child = copy.deepcopy(p1)
@@ -170,17 +169,18 @@ def new_generation(weighted_pop, pop_size, mate_prob, mate_type, mate_splits, ma
 
 
 # Combine two keyboards together
-def mate(board1, board2, mate_type, mate_splits):
+def mate(board1, board2, mate_type):
     
     child = []
     # Flatten board2 into a single list of keys
     board2_keys = [key for row in board2 for key in row]
     
     if mate_type == 1:
+        split = random.randint(0, 9)
         child = [
-            board1[0][:mate_splits[0]],
-            board1[1][:mate_splits[0]],
-            board1[2][:mate_splits[0]]
+            board1[0][:split],
+            board1[1][:split],
+            board1[2][:split]
         ]
         
         # Fill the remaining slots in child with keys from board2
@@ -194,10 +194,12 @@ def mate(board1, board2, mate_type, mate_splits):
                     row.append(key)
                     break
     else:
+        split1 = random.randint(0, 8)
+        split2 = random.randint(split1 + 1, 9) 
         child = [
-            board1[0][:mate_splits[0]],
-            board1[1][:mate_splits[0]],
-            board1[2][:mate_splits[0]]
+            board1[0][:split1],
+            board1[1][:split1],
+            board1[2][:split1]
         ]
         
         # Fill the remaining slots in child with keys from board2
@@ -206,7 +208,7 @@ def mate(board1, board2, mate_type, mate_splits):
                 continue
             
             for row in child:
-                if len(row) < mate_splits[1]:
+                if len(row) < split2 + 1:
                     row.append(key)
                     break
           
@@ -256,23 +258,9 @@ def main():
     
     # Cross-over
     crossover_type = 0
-    crossover_pt = [-1,-1]
     while crossover_type not in [1, 2]:
-        print("Enter crossover type: ")
-        crossover_type = get_int_input()
-    
-    if crossover_type == 1:
-        while 0 > crossover_pt[0] < 10:
-            print("Enter point of split: ")
-            crossover_pt[0] = get_int_input()
-    if crossover_type == 2:
-        while 0 > crossover_pt[0] < 10:
-            print("Enter point 1 of split: ")
-            crossover_pt[0] = get_int_input()
-        while 0 > crossover_pt[1] < 10:
-            print("Enter point 2 of split: ")
-            crossover_pt[1] = get_int_input()
-            
+        print("Enter number of crossover split points: ")
+        crossover_type = get_int_input()            
     print("Enter crossover rate: ")
     crossover_rate = get_float_input()
     print("Enter crossover cutoff: ")
@@ -292,14 +280,14 @@ def main():
     # ---------------------------------------------------
     
     # ---- Load Corpus and Calculate Initial Fitness ----
-    with open('corpus.txt', 'r') as file:
+    with open('camusEng.txt', 'r') as file:
         corpus = file.read()
 
     # Fitness calculation for QWERTY and Dvorak keyboards
     qwerty_fit = fitness(qwerty, corpus)
-    dvorak_fit = fitness(dvorak, corpus)
+    azerty_fit = fitness(azerty, corpus)
     print(f"QWERTY keyboard fitness: {qwerty_fit}")
-    print(f"Dvorak keyboard fitness: {dvorak_fit}")
+    print(f"AZERTY keyboard fitness: {azerty_fit}")
 
     # ---- Initialize Population ----
     population = init_population(population_size)
@@ -312,6 +300,7 @@ def main():
     # ---- Initialize Lists for Plotting ----
     average_fitness_list = []
     best_fitness_list = []
+    best_chromosome = []
 
     # ---- Start the Genetic Algorithm ----
     for generation in range(generations):
@@ -321,7 +310,6 @@ def main():
             population_size,
             crossover_rate,
             crossover_type,
-            crossover_pt,
             crossover_cutoff,
             mutation_rate,
             mutations,
@@ -347,6 +335,7 @@ def main():
         for row in best_chromosome:
             print(row)
     
+    keyboard_text = "\n".join([" | ".join(row) for row in best_chromosome])
     # ---- Plotting ----
     # Hyperparameters
     parameters = [
@@ -354,7 +343,6 @@ def main():
         "Population Size",
         "Crossover Rate",
         "Crossover Type",
-        "Crossover Point/s",
         "Crossover Cutoff",
         "Mutation Rate",
         "Mutation Scale",
@@ -367,7 +355,6 @@ def main():
         population_size,
         crossover_rate,
         crossover_type,
-        crossover_pt,
         crossover_cutoff,
         mutation_rate,
         mutations,
@@ -377,15 +364,15 @@ def main():
     
     # ---- Plotting ----
     # Create subplots with two columns: one for the plot, one for the table
-    _, ax = plt.subplots(1, 2, figsize=(14, 6), gridspec_kw={'width_ratios': [2, 1]})
+    fig, ax = plt.subplots(1, 2, figsize=(14, 6), gridspec_kw={'width_ratios': [2, 1]})
 
     # Plot the fitness trends in the left subplot
     ax[0].plot(range(1, generations + 1), average_fitness_list, label="Average Fitness", color="blue")
     ax[0].plot(range(1, generations + 1), best_fitness_list, label="Best Fitness", color="red")
     
     # Mark Qwerty and Dvorak
-    ax[0].axhline(y=qwerty_fit, color="black", linestyle="--", label="Qwerty fitness")
-    ax[0].axhline(y=dvorak_fit, color="black", linestyle="--", label="Dvorak fitness")
+    ax[0].axhline(y=qwerty_fit, color="black", linestyle="--", label="QWERTY fitness")
+    ax[0].axhline(y=azerty_fit, color="black", linestyle="--", label="AZERTY fitness")
     
     # Labels, legend, and grid
     ax[0].set_title("Fitness Trends Over Generations")
@@ -402,6 +389,15 @@ def main():
     table.set_fontsize(10)
     table.auto_set_column_width([0, 1])  # Adjust column widths
 
+    props = dict(boxstyle="round", facecolor="wheat", alpha=0.5)  # Styling for the text box
+    # Place the text box with the best keyboard layout
+    fig.text(
+        0.72, 0.25,  # Adjust the position (x, y) of the text box as needed
+        f"Best Keyboard Layout:\n\n{keyboard_text}",
+        fontsize=12,
+        bbox=props,
+        verticalalignment="top"
+    )
     # Adjust layout
     plt.tight_layout()
     plt.show()
@@ -447,10 +443,10 @@ if __name__ == "__main__":
         ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '?',],
         [" "]
     ]
-    dvorak = [
-        ["?", ",", ".", "p", "y", "f", "g", "c", "r", "l"],
-        ["a", "o", "e", "u", "i", "d", "h", "t", "n", "s"],
-        [";", "q", "j", "k", "x", "b", "m", "w", "v", "z"],
+    azerty = [
+        ['a', 'z', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+        ['q', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm'],
+        ['w', 'x', 'c', 'v', 'b', 'n', ',', ';', '.', '?'],
         [" "]
     ]
     main()
