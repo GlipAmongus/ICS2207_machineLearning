@@ -280,7 +280,7 @@ def main():
     # ---------------------------------------------------
     
     # ---- Load Corpus and Calculate Initial Fitness ----
-    with open('camusEng.txt', 'r') as file:
+    with open('corpus.txt', 'r') as file:
         corpus = file.read()
 
     # Fitness calculation for QWERTY and Dvorak keyboards

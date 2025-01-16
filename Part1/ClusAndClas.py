@@ -1,117 +1,170 @@
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from ucimlrepo import fetch_ucirepo
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn.datasets import load_iris, load_wine
 from sklearn.cluster import KMeans
+from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score
+from sklearn import datasets
+from sklearn.metrics import silhouette_score
+from sklearn.metrics import confusion_matrix, classification_report
 
-def load_dataset(name):
-    if name == "iris":
-        iris = fetch_ucirepo(id=53)
-        data = iris
-        feature_names = ["sepal length (cm)", "sepal width (cm)", "petal length (cm)", "petal width (cm)"]
-    elif name == "wine":
-        wine = fetch_ucirepo(id=109)
-        data = wine
-        feature_names = [
-            "alcohol", "malic acid", "ash", "alcalinity of ash", "magnesium",
-            "total phenols", "flavanoids", "nonflavanoid phenols", "proanthocyanins",
-            "color intensity", "hue", "OD280/OD315 of diluted wines", "proline"
-        ]
-    else:
-        raise ValueError("Unsupported dataset. Choose 'iris' or 'wine'.")
-    
-    df = pd.DataFrame(data.data, columns=feature_names)
-    df['target'] = data.target
-    return df, feature_names
+# Load the datasets
+def load_data(dataset_name="iris"):
+    if dataset_name == "iris":
+        # Load Iris dataset
+        data = datasets.load_iris()
+    elif dataset_name == "wine":
+        # Load Wine dataset
+        data = datasets.load_wine()
+    return data
 
-def plot_3d(df, features, target_name, title):
-    fig = plt.figure(figsize=(10, 8))
+# Visualize the data with three features in 3D
+def plot_3d(data, selected_features, title="3D Scatter Plot"):
+    X = data.data[:, selected_features]  # Selecting the 3 features for the plot
+    y = data.target
+    fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    
-    scatter = ax.scatter(
-        df[features[0]], df[features[1]], df[features[2]],
-        c=df['target'], cmap='viridis', label=df[target_name]
-    )
-    
-    ax.set_xlabel(features[0])
-    ax.set_ylabel(features[1])
-    ax.set_zlabel(features[2])
-    plt.title(title)
-    plt.legend(*scatter.legend_elements(), title=target_name)
+
+    ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap='viridis')
+    ax.set_xlabel(data.feature_names[selected_features[0]])
+    ax.set_ylabel(data.feature_names[selected_features[1]])
+    ax.set_zlabel(data.feature_names[selected_features[2]])
+    ax.set_title(title)
     plt.show()
 
-# Component 2: k-Means Clustering
-
-def kmeans_clustering(df, features, n_clusters):
+# k-Means Clustering Algorithm
+def k_means_clustering(data, selected_features, n_clusters=3):
+    X = data.data[:, selected_features]
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    df['cluster'] = kmeans.fit_predict(df[features])
-    return kmeans
-
-def plot_clusters_3d(df, features, title):
-    fig = plt.figure(figsize=(10, 8))
+    y_kmeans = kmeans.fit_predict(X)
+            
+    # Plotting the clustering result
+    fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    
-    scatter = ax.scatter(
-        df[features[0]], df[features[1]], df[features[2]],
-        c=df['cluster'], cmap='viridis'
-    )
-    
-    ax.set_xlabel(features[0])
-    ax.set_ylabel(features[1])
-    ax.set_zlabel(features[2])
-    plt.title(title)
+    scatter = ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y_kmeans, cmap='brg')        
+    ax.set_xlabel(data.feature_names[selected_features[0]])
+    ax.set_ylabel(data.feature_names[selected_features[1]])
+    ax.set_zlabel(data.feature_names[selected_features[2]])
+    ax.set_title("k-Means Clustering")
     plt.show()
 
-# Component 3: k-NN Classification
+    # Evaluate the clustering performance (Silhouette Score)
+    silhouette_avg = silhouette_score(X, y_kmeans)
+    print(f"Silhouette Score: {silhouette_avg}")
 
-def knn_classification(df, features, target_name):
-    X = df[features]
-    y = df['target']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    
-    # Elbow method
-    k_values = range(1, 15)
-    scores = []
-    for k in k_values:
-        knn = KNeighborsClassifier(n_neighbors=k)
-        score = cross_val_score(knn, X_train, y_train, cv=5).mean()
-        scores.append(score)
-    
-    optimal_k = k_values[np.argmax(scores)]
-    print(f"Optimal k: {optimal_k}")
+# k-Nearest Neighbors (k-NN) Algorithm
+def k_nn_classification(data, selected_features, test_size=0.3, k_value=5):
+    X = data.data[:, selected_features]
+    y = data.target
 
-    # Train and test the model
-    knn = KNeighborsClassifier(n_neighbors=optimal_k)
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+
+    # Initialize and train the k-NN classifier
+    knn = KNeighborsClassifier(n_neighbors=k_value)
     knn.fit(X_train, y_train)
+
+    # Predict and evaluate the model
     y_pred = knn.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
-    print(f"Accuracy on test set: {accuracy:.2f}")
+    print(f"Accuracy of k-NN with k={k_value}: {accuracy * 100:.2f}%")
 
-# Main program
-if __name__ == "__main__":
-    dataset_name = input("Enter dataset name ('iris' or 'wine'): ").lower()
-    df, feature_names = load_dataset(dataset_name)
+    cm = confusion_matrix(y_test, y_pred)
+    print("Confusion Matrix:\n", cm)
+    print("\nClassification Report:\n", classification_report(y_test, y_pred))
+    return knn
+
+# Find optimal k using the elbow method (for k-Means clustering)
+def elbow_method(data, selected_features, max_k=10):
+    X = data.data[:, selected_features]
+    inertia = []
     
-    print("Features available:")
-    for i, feature in enumerate(feature_names):
-        print(f"{i + 1}. {feature}")
+    for k in range(1, max_k + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42)
+        kmeans.fit(X)
+        inertia.append(kmeans.inertia_)
     
+    # Plotting the elbow graph
+    plt.plot(range(1, max_k + 1), inertia, marker='o')
+    plt.title("Elbow Method For Optimal k")
+    plt.xlabel("Number of clusters")
+    plt.ylabel("Inertia")
+    plt.show()
+
+# Main function to run all components
+def main():
+    # ------------ IRIS ------------
+    # Load the dataset
+    dataset_name = "iris"
+    data = load_data(dataset_name)
+    
+    # Visualize the data (pick three features)
+    print(dataset_name)
+    print("Available features:")
+    for i, feature in enumerate(data.feature_names):
+        print(f"{i}: {feature}")
+    
+    # User input for selecting 3 features
     selected_features = []
-    for i in range(3):
-        feature_index = int(input(f"Select feature {i + 1} (1-{len(feature_names)}): ")) - 1
-        selected_features.append(feature_names[feature_index])
+    while len(selected_features) < 3:
+        try:
+            feature_index = int(input(f"Select feature {len(selected_features) + 1} (0-{len(data.feature_names) - 1}): "))
+            if feature_index < 0 or feature_index >= len(data.feature_names):
+                print("Invalid index. Please select a valid feature index.")
+            elif feature_index in selected_features:
+                print("Feature already selected. Please choose a different one.")
+            else:
+                selected_features.append(feature_index)
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            
+    plot_3d(data, selected_features, title=f"{dataset_name.capitalize()} - 3D Scatter")
+    
+    # k-Means Clustering
+    k_means_clustering(data, selected_features, n_clusters=3)
+    
+    # k-NN Classification
+    k_nn_classification(data, selected_features, test_size=0.3, k_value=5)
+    
+    # Use the elbow method for k-NN
+    elbow_method(data, selected_features)
+    # ------------------------------
+    
+    
+    # ------------ WINE ------------
+    # Load the dataset
+    dataset_name = "wine"
+    data = load_data(dataset_name)
+    
+    # Visualize the data (pick three features)
+    print(dataset_name)
+    print("Available features:")
+    for i, feature in enumerate(data.feature_names):
+        print(f"{i}: {feature}")
+    
+    # User input for selecting 3 features
+    selected_features = []
+    while len(selected_features) < 3:
+        try:
+            feature_index = int(input(f"Select feature {len(selected_features) + 1} (0-{len(data.feature_names) - 1}): "))
+            if feature_index < 0 or feature_index >= len(data.feature_names):
+                print("Invalid index. Please select a valid feature index.")
+            elif feature_index in selected_features:
+                print("Feature already selected. Please choose a different one.")
+            else:
+                selected_features.append(feature_index)
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            
+    plot_3d(data, selected_features, title=f"{dataset_name.capitalize()} - 3D Scatter")
+    
+    # k-Means Clustering
+    k_means_clustering(data, selected_features, n_clusters=3)
+    
+    # k-NN Classification
+    k_nn_classification(data, selected_features, test_size=0.3, k_value=5)
+    
+    # Use the elbow method for k-NN
+    elbow_method(data, selected_features)
 
-    # Component 1
-    plot_3d(df, selected_features, target_name='target', title="3D Scatter Plot of Selected Features")
-
-    # Component 2
-    kmeans = kmeans_clustering(df, selected_features, n_clusters=len(np.unique(df['target'])))
-    plot_clusters_3d(df, selected_features, title="k-Means Clustering")
-
-    # Component 3
-    knn_classification(df, selected_features, target_name='target')
+if __name__ == "__main__":
+    main()
